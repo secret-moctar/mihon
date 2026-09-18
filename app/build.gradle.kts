@@ -33,7 +33,7 @@ android {
     defaultConfig {
         applicationId = "app.mihon.translate"
 
-        versionCode = 29
+        versionCode = 30
         versionName = "0.20.4"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getLatestCommitCount()}\"")
@@ -301,7 +301,6 @@ dependencies {
     implementation(libs.bundles.mlkit.translation)
 
     implementation(libs.webgpuviewer)
-    implementation(libs.kim)
 
     // UI libraries
     implementation(libs.material)
