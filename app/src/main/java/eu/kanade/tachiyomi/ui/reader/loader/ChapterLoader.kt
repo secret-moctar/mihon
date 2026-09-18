@@ -7,6 +7,9 @@ import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
+import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import kotlinx.coroutines.flow.MutableSharedFlow
+import mihon.feature.translate.TranslationManager
 import mihon.core.archive.archiveReader
 import mihon.core.archive.epubReader
 import tachiyomi.core.common.i18n.stringResource
@@ -28,6 +31,9 @@ class ChapterLoader(
     private val chapterCache: ChapterCache,
     private val manga: Manga,
     private val source: Source,
+    private val translationManager: TranslationManager? = null,
+    private val previousChapterIdOf: (ReaderChapter) -> Long? = { null },
+    private val translatedPageUpdates: MutableSharedFlow<ReaderPage>? = null,
 ) {
 
     /**
@@ -44,6 +50,16 @@ class ChapterLoader(
             logcat { "Loading pages for ${chapter.chapter.name}" }
             try {
                 val loader = getPageLoader(chapter)
+                if (translationManager != null && translatedPageUpdates != null) {
+                    loader.readyHook = ReaderTranslationHook(
+                        manager = translationManager,
+                        chapter = chapter,
+                        manga = manga,
+                        source = source,
+                        previousChapterId = { previousChapterIdOf(chapter) },
+                        pageUpdates = translatedPageUpdates,
+                    )
+                }
                 chapter.pageLoader = loader
 
                 val pages = loader.getPages()

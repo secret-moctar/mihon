@@ -7,7 +7,6 @@ import eu.kanade.tachiyomi.data.database.models.toDomainChapter
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.source.Source
-import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import mihon.core.archive.archiveReader
@@ -49,26 +48,30 @@ internal class DownloadPageLoader(
 
     override fun recycle() {
         super.recycle()
+        // The hook is shared with the archive loader and was already recycled above.
+        archivePageLoader?.readyHook = null
         archivePageLoader?.recycle()
     }
 
     private suspend fun getPagesFromArchive(file: UniFile): List<ReaderPage> {
-        val loader = ArchivePageLoader(file.archiveReader(context)).also { archivePageLoader = it }
+        val loader = ArchivePageLoader(file.archiveReader(context)).also {
+            it.readyHook = readyHook
+            archivePageLoader = it
+        }
         return loader.getPages()
     }
 
     private fun getPagesFromDirectory(): List<ReaderPage> {
         val pages = downloadManager.buildPageList(source, manga, chapter.chapter.toDomainChapter()!!)
         return pages.map { page ->
-            ReaderPage(page.index, page.url, page.imageUrl) {
-                context.contentResolver.openInputStream(page.uri ?: Uri.EMPTY)!!
-            }.apply {
-                status = Page.State.Ready
+            ReaderPage(page.index, page.url, page.imageUrl).apply {
+                prepareLocalPage(this) { context.contentResolver.openInputStream(page.uri ?: Uri.EMPTY)!! }
             }
         }
     }
 
     override suspend fun loadPage(page: ReaderPage) {
-        archivePageLoader?.loadPage(page)
+        val archive = archivePageLoader
+        if (archive != null) archive.loadPage(page) else publishLocalPage(page)
     }
 }

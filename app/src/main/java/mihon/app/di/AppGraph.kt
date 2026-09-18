@@ -40,6 +40,8 @@ import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import kotlinx.serialization.json.Json
 import mihon.core.metro.IsDebugBuild
+import mihon.feature.translate.TranslationManager
+import mihon.feature.translate.TranslationPreferences
 import mihon.domain.extension.interactor.GetExtensionStoreCountAsFlow
 import tachiyomi.domain.backup.service.BackupPreferences
 import tachiyomi.domain.category.interactor.GetCategories
@@ -88,6 +90,9 @@ interface AppGraph : ViewModelGraph {
     val privacyPreferences: PrivacyPreferences
     val securityPreferences: SecurityPreferences
     val downloadPreferences: DownloadPreferences
+    val translationPreferences: TranslationPreferences
+
+    val translationManager: TranslationManager
 
     val crashLogUtil: CrashLogUtil
 

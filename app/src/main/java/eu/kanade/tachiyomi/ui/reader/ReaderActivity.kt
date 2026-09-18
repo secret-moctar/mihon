@@ -6,17 +6,24 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.PixelCopy
 import android.view.View
 import android.view.View.LAYER_TYPE_HARDWARE
 import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -55,6 +62,7 @@ import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.components.ChapterNavigatorType
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
+import eu.kanade.presentation.reader.settings.TranslationSettingsPage
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -217,6 +225,14 @@ class ReaderActivity : BaseActivity() {
             .onEach(::setChapters)
             .launchIn(lifecycleScope)
 
+        viewModel.translatedPageUpdates
+            .onEach { page -> (viewModel.state.value.viewer as? WebGpuViewer)?.refreshPage(page) }
+            .launchIn(lifecycleScope)
+
+        viewModel.translationManager.messages
+            .onEach { message -> toast(message) }
+            .launchIn(lifecycleScope)
+
         viewModel.eventFlow
             .onEach { event ->
                 when (event) {
@@ -297,6 +313,8 @@ class ReaderActivity : BaseActivity() {
                     onShowMenus = { setMenuVisibility(true) },
                     onHideMenus = { setMenuVisibility(false) },
                     viewModel = settingsviewModel,
+                    initialTab = (state.dialog as ReaderViewModel.Dialog.Settings).initialTab,
+                    translationPage = { TranslationSettingsPage(viewModel) },
                 )
             }
             is ReaderViewModel.Dialog.ReadingModeSelect -> {
@@ -462,6 +480,16 @@ class ReaderActivity : BaseActivity() {
         val verticalNavigatorOnLeft by readerPreferences.verticalNavigatorOnLeft.collectAsState()
         val verticalNavigatorHeight by readerPreferences.verticalNavigatorHeight.collectAsState()
 
+        val translationPrefs = viewModel.translationManager.preferences
+        val showingOriginal by translationPrefs.showOriginal.collectAsState()
+        val enabledManga by translationPrefs.enabledManga.collectAsState()
+        val disabledManga by translationPrefs.disabledManga.collectAsState()
+        val enabledSources by translationPrefs.enabledSources.collectAsState()
+        val translateAll by translationPrefs.translateAllByDefault.collectAsState()
+        val translationEnabled = remember(state.manga, enabledManga, disabledManga, enabledSources, translateAll) {
+            viewModel.isTranslationEnabled()
+        }
+
         ReaderAppBars(
             visible = state.menuVisible,
 
@@ -518,7 +546,82 @@ class ReaderActivity : BaseActivity() {
                 menuToggleToast = toast(if (enabled) MR.strings.on else MR.strings.off)
             },
             onClickSettings = viewModel::openSettingsDialog,
+            translationEnabled = translationEnabled,
+            showingOriginal = showingOriginal,
+            onClickTranslate = ::onClickTranslate,
+            onLongClickTranslate = viewModel::openTranslationSettingsDialog,
         )
+    }
+
+    private fun onClickTranslate() {
+        menuToggleToast?.cancel()
+        if (!viewModel.isTranslationEnabled()) {
+            viewModel.setTranslationEnabled(true)
+            menuToggleToast = toast(
+                if (viewModel.translationManager.hasUsableEngine()) {
+                    MR.strings.translate_enabled_toast
+                } else {
+                    MR.strings.translate_no_engine
+                },
+            )
+            return
+        }
+        crossfadeViewer {
+            val original = viewModel.toggleShowOriginal()
+            menuToggleToast = toast(if (original) MR.strings.translate_showing_original else MR.strings.translate_showing_translation)
+        }
+    }
+
+    /**
+     * Captures the current screen, runs [change], then fades the capture out so switching between the
+     * original and translated page is smooth instead of flashing while images reload.
+     */
+    private fun crossfadeViewer(change: () -> Unit) {
+        val container = binding.viewerContainer
+        if (container.width == 0 || container.height == 0) {
+            change()
+            return
+        }
+        val bitmap = Bitmap.createBitmap(container.width, container.height, Bitmap.Config.ARGB_8888)
+        val location = IntArray(2).also { container.getLocationInWindow(it) }
+        val rect = Rect(location[0], location[1], location[0] + container.width, location[1] + container.height)
+        try {
+            PixelCopy.request(
+                window,
+                rect,
+                bitmap,
+                { result ->
+                    if (result != PixelCopy.SUCCESS) {
+                        bitmap.recycle()
+                        change()
+                        return@request
+                    }
+                    val overlay = ImageView(this).apply {
+                        setImageBitmap(bitmap)
+                        scaleType = ImageView.ScaleType.FIT_XY
+                    }
+                    binding.readerContainer.addView(
+                        overlay,
+                        binding.readerContainer.indexOfChild(container) + 1,
+                        FrameLayout.LayoutParams(container.width, container.height),
+                    )
+                    change()
+                    overlay.animate()
+                        .alpha(0f)
+                        .setStartDelay(350)
+                        .setDuration(300)
+                        .withEndAction {
+                            binding.readerContainer.removeView(overlay)
+                            bitmap.recycle()
+                        }
+                        .start()
+                },
+                Handler(Looper.getMainLooper()),
+            )
+        } catch (_: IllegalArgumentException) {
+            bitmap.recycle()
+            change()
+        }
     }
 
     /**

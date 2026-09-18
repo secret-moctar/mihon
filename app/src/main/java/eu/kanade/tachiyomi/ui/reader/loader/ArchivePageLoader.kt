@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.reader.loader
 
-import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
 import mihon.core.archive.ArchiveReader
@@ -18,8 +17,7 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
             .mapIndexed { i, entry ->
                 ReaderPage(i).apply {
-                    stream = { reader.getInputStream(entry.name)!! }
-                    status = Page.State.Ready
+                    prepareLocalPage(this) { reader.getInputStream(entry.name)!! }
                 }
             }
             .toList()
@@ -27,6 +25,7 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
 
     override suspend fun loadPage(page: ReaderPage) {
         check(!isRecycled)
+        publishLocalPage(page)
     }
 
     override fun recycle() {

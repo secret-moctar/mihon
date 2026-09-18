@@ -99,3 +99,14 @@
     public <init>();
     public void destroy();
 }
+
+# Translation: ML Kit (text recognition, translate, language id) builds its components through
+# reflection-driven registrars; shrinking them leaves null fields at runtime.
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_** { *; }
+-keep class com.google.android.gms.tasks.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+-keep class com.google.firebase.components.** { *; }
+-keep class com.google.android.datatransport.** { *; }
+-dontwarn com.google.mlkit.**
+-dontwarn com.google.android.gms.**

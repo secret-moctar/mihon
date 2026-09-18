@@ -1,4 +1,7 @@
 [versions]
+mlkit-textRecognition = "16.0.1"
+mlkit-translate = "17.0.3"
+mlkit-languageId = "17.0.6"
 aboutLibraries = "15.2.0"
 android-desugar = "2.1.5"
 android-gradle = "9.4.0"
@@ -79,6 +82,12 @@ webgpuviewer = "41"
 xmlutil = "1.0.2"
 
 [libraries]
+mlkit-textRecognition-latin = { module = "com.google.mlkit:text-recognition", version.ref = "mlkit-textRecognition" }
+mlkit-textRecognition-korean = { module = "com.google.mlkit:text-recognition-korean", version.ref = "mlkit-textRecognition" }
+mlkit-textRecognition-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkit-textRecognition" }
+mlkit-textRecognition-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "mlkit-textRecognition" }
+mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "mlkit-translate" }
+mlkit-languageId = { module = "com.google.mlkit:language-id", version.ref = "mlkit-languageId" }
 aboutLibraries-compose = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
 android-desugar = { module = "com.android.tools:desugar_jdk_libs", version.ref = "android-desugar" }
 android-gradle = { module = "com.android.tools.build:gradle", version.ref = "android-gradle" }
@@ -220,6 +229,7 @@ sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 valkyrie = { id = "io.github.composegears.valkyrie", version.ref = "valkyrie" }
 
 [bundles]
+mlkit-translation = ["mlkit-textRecognition-latin", "mlkit-textRecognition-korean", "mlkit-textRecognition-chinese", "mlkit-textRecognition-japanese", "mlkit-translate", "mlkit-languageId"]
 androidx-lifecycle = ["androidx-lifecycle-common", "androidx-lifecycle-process", "androidx-lifecycle-runtime", "androidx-lifecycle-viewmodel", "androidx-lifecycle-viewmodelCompose"]
 coil = ["coil-core", "coil-gif", "coil-compose", "coil-network-okhttp"]
 kotlinx-coroutines = ["kotlinx-coroutines-core", "kotlinx-coroutines-android", "kotlinx-coroutines-guava"]

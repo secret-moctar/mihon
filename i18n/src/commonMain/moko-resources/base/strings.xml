@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Mihon</string>
+    <string name="app_name" translatable="false">Mihon Translate</string>
 
     <!-- Generic strings -->
     <string name="on">On</string>
@@ -1085,4 +1085,75 @@
     <string name="donationCampaign.paragraph3">Regardless, Mihon will continue to be maintained by me and the volunteers, and it will stay open source.</string>
     <string name="donationCampaign.contactPlatform">Discord</string>
     <string name="donationCampaign.dismiss">Dismiss</string>
+
+    <!-- Translation -->
+    <string name="translate_action">Translate</string>
+    <string name="translate_tab">Translation</string>
+    <string name="pref_category_translation">Translation</string>
+    <string name="pref_translation_summary">Translate manhwa, manhua and manga pages with context</string>
+    <string name="translate_no_engine">No translation engine is set up. Add a free API key in Settings › Translation.</string>
+    <string name="translate_enabled_toast">Translation turned on for this series</string>
+    <string name="translate_showing_original">Showing original</string>
+    <string name="translate_showing_translation">Showing translation</string>
+    <string name="translate_this_series">Translate this series</string>
+    <string name="translate_show_original">Show original pages</string>
+    <string name="translate_progress">Translated %1$d of %2$d pages</string>
+    <string name="translate_target_language">Translate to</string>
+    <string name="translate_source_language">Original language</string>
+    <string name="translate_font">Font</string>
+    <string name="translate_font_comic">Comic</string>
+    <string name="translate_font_sans">Sans</string>
+    <string name="translate_font_serif">Serif</string>
+    <string name="translate_font_size">Text size</string>
+    <string name="translate_sfx">Translate sound effects</string>
+    <string name="translate_original_while_loading">Show original while translating</string>
+    <string name="translate_pretranslate_next">Prepare next chapter in background</string>
+    <string name="translate_series_memory">Series memory</string>
+    <string name="translate_series_notes">Notes for the translator</string>
+    <string name="translate_series_notes_hint">e.g. Keep Korean honorifics. The MC talks casually.</string>
+    <string name="translate_glossary">Glossary</string>
+    <string name="translate_glossary_original">Original</string>
+    <string name="translate_glossary_translation">Translation</string>
+    <string name="translate_characters">Characters</string>
+    <string name="translate_summaries_count">Remembers summaries of %1$d chapters</string>
+    <string name="translate_clear_memory">Clear memory</string>
+    <string name="translate_pref_all_series">Translate all series by default</string>
+    <string name="translate_pref_sources">Sources to translate</string>
+    <string name="translate_pref_sources_summary">Series from these sources are translated unless turned off in the reader</string>
+    <string name="translate_pref_engines">Translation engines</string>
+    <string name="translate_pref_engines_summary">Tried from top to bottom. When one runs out of free quota the next one is used.</string>
+    <string name="translate_engine_ready">Ready</string>
+    <string name="translate_engine_not_ready">Needs setup</string>
+    <string name="translate_engine_off">Off</string>
+    <string name="translate_engine_keys">API keys (one per line)</string>
+    <string name="translate_engine_base_url">Server address</string>
+    <string name="translate_engine_model">Model</string>
+    <string name="translate_engine_load_models">Load models</string>
+    <string name="translate_engine_test">Test</string>
+    <string name="translate_engine_test_ok">Works: %1$s</string>
+    <string name="translate_engine_vision">Model can read images</string>
+    <string name="translate_engine_enabled">Enabled</string>
+    <string name="translate_engine_get_key">Get a free key</string>
+    <string name="translate_engine_add">Add engine</string>
+    <string name="translate_engine_move_up">Move up</string>
+    <string name="translate_engine_move_down">Move down</string>
+    <string name="translate_pref_context">Context</string>
+    <string name="translate_pref_pages_per_request">Pages per request</string>
+    <string name="translate_pref_lookahead">Following pages used as context</string>
+    <string name="translate_pref_previous_summaries">Previous chapter summaries used</string>
+    <string name="translate_pref_send_images">Send bubble images</string>
+    <string name="translate_pref_send_images_summary">Lets vision models fix misread text. Uses more of the free quota.</string>
+    <string name="translate_pref_instructions">Instructions for every series</string>
+    <string name="translate_pref_instructions_hint">e.g. Use Modern Standard Arabic. Keep it natural and casual.</string>
+    <string name="translate_pref_downloads">Translate chapters when downloaded</string>
+    <string name="translate_pref_downloads_summary">Saved with the chapter so it can be read translated offline</string>
+    <string name="translate_pref_display">Display</string>
+    <string name="translate_pref_uppercase">Uppercase text (Latin alphabets)</string>
+    <string name="translate_pref_storage">Storage</string>
+    <string name="translate_pref_cache_size">Rendered pages cache</string>
+    <string name="translate_pref_clear_cache">Clear translated page cache</string>
+    <string name="translate_pref_clear_cache_summary">Used: %1$s. Translations and series memory are kept.</string>
+    <string name="translate_pref_offline_wifi">Download offline language models on Wi-Fi only</string>
+    <string name="translate_cache_cleared">Cache cleared</string>
+    <string name="translate_log">Recent activity</string>
 </resources>

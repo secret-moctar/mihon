@@ -1069,6 +1069,37 @@ open class WebGpuViewer(
         }
     }
 
+    /**
+     * Decodes [page] again because its image changed (translation finished or original/translated
+     * toggled). Dual page spreads share images between pages, so they are rebuilt from scratch.
+     */
+    fun refreshPage(page: ReaderPage) {
+        val key = PageKey.Reader(page.chapter.chapter.id, page.index)
+        synchronized(lock) {
+            if (isDualPageMode()) {
+                decodeQueue.clear()
+                pageCache.values.forEach {
+                    it.state = PageState.IDLE
+                    (it as? ViewerReaderPage)?.spreadPage?.let(::cleanupImage)
+                    cleanupImage(it.imagePage)
+                }
+                pageCache.clear()
+                currentPage = (currentPage as? ViewerReaderPage)?.page?.let { getPage(it) }
+                    ?: (currentPage as? ViewerTransitionPage)?.let { getPage(it.prevChapter, it.nextChapter) }
+                currentPage?.let { preloadPages(it) }
+            } else {
+                val cached = findInCache(key) as? ViewerReaderPage ?: return
+                if (cached.state == PageState.LOADING || cached.state == PageState.DECODING) return
+                val old = cached.imagePage
+                cached.imagePage = ProgressPage()
+                cached.state = PageState.IDLE
+                cleanupImage(old)
+                queueForDecode(cached, prioritize = currentPage?.let { pageKey(it) == key } ?: false)
+            }
+        }
+        pager.state.invalidate()
+    }
+
     private suspend fun decodeReaderPage(page: ViewerReaderPage) {
         if (page.page.status != Page.State.Ready) {
             startPageLoad(page)

@@ -86,7 +86,7 @@ internal class HttpPageLoader(
         val imageUrl = page.imageUrl
 
         // Check if the image has been deleted
-        if (page.status == Page.State.Ready && imageUrl != null && !chapterCache.isImageInCache(imageUrl)) {
+        if (page.status == Page.State.Ready && imageUrl != null && !chapterCache.isImageInCache(cacheUrl(imageUrl))) {
             page.status = Page.State.Queue
         }
 
@@ -111,6 +111,9 @@ internal class HttpPageLoader(
             }
         }
     }
+
+    /** The image actually downloaded for [imageUrl]; the translation hook may ask for the raw page. */
+    private fun cacheUrl(imageUrl: String): String = readyHook?.rawImageUrl(imageUrl) ?: imageUrl
 
     /**
      * Retries a page. This method is only called from user interaction on the viewer.
@@ -176,16 +179,20 @@ internal class HttpPageLoader(
                 page.status = Page.State.LoadPage
                 page.imageUrl = source.getImageUrl(page)
             }
-            val imageUrl = page.imageUrl!!
+            val imageUrl = cacheUrl(page.imageUrl!!)
 
             if (force || !chapterCache.isImageInCache(imageUrl)) {
                 page.status = Page.State.DownloadImage
-                val imageResponse = source.getImage(page)
+                val requestPage = if (imageUrl != page.imageUrl) {
+                    Page(page.index, page.url, imageUrl)
+                } else {
+                    page
+                }
+                val imageResponse = source.getImage(requestPage)
                 chapterCache.putImageToCache(imageUrl, imageResponse)
             }
 
-            page.stream = { chapterCache.getImageFile(imageUrl).inputStream() }
-            page.status = Page.State.Ready
+            publishReady(page) { chapterCache.getImageFile(imageUrl).inputStream() }
         } catch (e: Throwable) {
             page.status = Page.State.Error(e)
             if (e is CancellationException) {

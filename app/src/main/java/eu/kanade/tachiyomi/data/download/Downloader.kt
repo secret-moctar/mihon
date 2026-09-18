@@ -60,6 +60,8 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.i18n.MR
+import mihon.app.di.appGraph
+import mihon.feature.translate.MachineTranslatedPages
 import java.io.File
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
@@ -406,6 +408,9 @@ class Downloader(
             DiskUtil.createNoMediaFile(tmpDir, context)
 
             download.status = Download.State.DOWNLOADED
+            download.chapter.id.let { chapterId ->
+                context.appGraph.translationManager.onChapterDownloaded(download.manga.id, download.manga.source, chapterId)
+            }
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             // If the page list threw, it will resume here
@@ -436,13 +441,25 @@ class Downloader(
             isDownloadedPageImage(it.name ?: return@firstOrNull false, filename)
         }
 
+        // Machine-translation sites: keep the raw page when this app translates the series itself.
+        val rawUrl = MachineTranslatedPages.rawUrl(page.imageUrl)?.takeIf {
+            context.appGraph.translationManager.preferences.isEnabledFor(download.manga.id, download.manga.source)
+        }
+        val imageUrl = rawUrl ?: page.imageUrl!!
+        if (rawUrl != null) {
+            // The raw page has erased bubbles: keep the site's text so the chapter translates offline.
+            MachineTranslatedPages.fragment(page.imageUrl)?.let {
+                context.appGraph.translationManager.store.saveSiteDialogs(download.chapter.id, page.index, it)
+            }
+        }
+
         try {
             // If the image is already downloaded, do nothing. Otherwise download from network
             val file = when {
                 imageFile != null -> imageFile
-                chapterCache.isImageInCache(
-                    page.imageUrl!!,
-                ) -> copyImageFromCache(chapterCache.getImageFile(page.imageUrl!!), tmpDir, filename)
+                chapterCache.isImageInCache(imageUrl) ->
+                    copyImageFromCache(chapterCache.getImageFile(imageUrl), tmpDir, filename)
+                rawUrl != null -> downloadImage(Page(page.index, page.url, rawUrl), download.source, tmpDir, filename)
                 else -> downloadImage(page, download.source, tmpDir, filename)
             }
 

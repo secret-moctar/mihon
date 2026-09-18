@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
@@ -97,7 +98,8 @@ class PagerPageHolder(
             launchIO {
                 loader.loadPage(page)
             }
-            page.statusFlow.collectLatest { state ->
+            // Revision bumps redraw a ready page whose image changed (translation, original toggle).
+            combine(page.statusFlow, page.displayRevision) { state, _ -> state }.collectLatest { state ->
                 when (state) {
                     Page.State.Queue -> setQueued()
                     Page.State.LoadPage -> setLoading()

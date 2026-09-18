@@ -40,6 +40,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.loader.ChapterLoader
 import eu.kanade.tachiyomi.ui.reader.loader.DownloadPageLoader
+import eu.kanade.tachiyomi.ui.reader.loader.ReaderTranslationHook
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -57,6 +58,7 @@ import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -69,6 +71,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
+import mihon.feature.translate.TranslationManager
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
@@ -121,6 +124,7 @@ class ReaderViewModel(
     private val coverCache: CoverCache,
     private val chapterCache: ChapterCache,
     private val downloadCache: DownloadCache,
+    val translationManager: TranslationManager,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -146,6 +150,9 @@ class ReaderViewModel(
     val hasValidArgs = mangaId != -1L && initialChapterId != -1L
 
     private val eventChannel = Channel<Event>()
+
+    /** Pages whose translated image changed after they were displayed. */
+    val translatedPageUpdates = MutableSharedFlow<ReaderPage>(extraBufferCapacity = 64)
     val eventFlow = eventChannel.receiveAsFlow()
 
     /**
@@ -326,7 +333,19 @@ class ReaderViewModel(
                 mutableState.update { it.copy(manga = manga, source = source) }
                 if (chapterId == -1L) chapterId = initialChapterId
 
-                loader = ChapterLoader(context, downloadManager, downloadProvider, chapterCache, manga, source)
+                loader = ChapterLoader(
+                    context = context,
+                    downloadManager = downloadManager,
+                    downloadProvider = downloadProvider,
+                    chapterCache = chapterCache,
+                    manga = manga,
+                    source = source,
+                    translationManager = translationManager,
+                    previousChapterIdOf = { chapter ->
+                        chapterList.getOrNull(chapterList.indexOf(chapter) - 1)?.chapter?.id
+                    },
+                    translatedPageUpdates = translatedPageUpdates,
+                )
 
                 loadChapter(loader!!, chapterList.first { chapterId == it.chapter.id })
             } catch (e: Throwable) {
@@ -493,6 +512,11 @@ class ReaderViewModel(
         val inDownloadRange = page.number.toDouble() / pages.size > 0.25
         if (inDownloadRange) {
             downloadNextChapters()
+        }
+
+        selectedChapter.translationHook?.setFocus(page.index)
+        if (page.number.toDouble() / pages.size >= 0.3) {
+            pretranslateNextChapter()
         }
 
         eventChannel.trySend(Event.PageChanged)
@@ -700,6 +724,53 @@ class ReaderViewModel(
     /**
      * Returns the viewer position used by this manga or the default one.
      */
+    // region Translation
+
+    private val ReaderChapter.translationHook: ReaderTranslationHook?
+        get() = pageLoader?.readyHook as? ReaderTranslationHook
+
+    private var pretranslatedChapterId: Long? = null
+
+    fun isTranslationEnabled(): Boolean {
+        val manga = manga ?: return false
+        return translationManager.preferences.isEnabledFor(manga.id, manga.source)
+    }
+
+    fun setTranslationEnabled(enabled: Boolean) {
+        val manga = manga ?: return
+        translationManager.preferences.setEnabledFor(manga.id, enabled)
+        onTranslationSettingsChanged()
+        if (enabled) pretranslatedChapterId = null
+    }
+
+    fun toggleShowOriginal(): Boolean {
+        val showOriginal = !translationManager.preferences.showOriginal.get()
+        translationManager.preferences.showOriginal.set(showOriginal)
+        onTranslationSettingsChanged()
+        return showOriginal
+    }
+
+    /** Redraws loaded pages after a translation setting changed. */
+    fun onTranslationSettingsChanged() {
+        val chapters = state.value.viewerChapters ?: return
+        listOfNotNull(chapters.prevChapter, chapters.currChapter, chapters.nextChapter)
+            .forEach { it.translationHook?.onDisplaySettingsChanged() }
+    }
+
+    /** Translates the next chapter in the background so it opens instantly. */
+    private fun pretranslateNextChapter() {
+        if (!translationManager.preferences.pretranslateNextChapter.get() || !isTranslationEnabled()) return
+        val next = state.value.viewerChapters?.nextChapter ?: return
+        if (pretranslatedChapterId == next.chapter.id) return
+        pretranslatedChapterId = next.chapter.id
+        viewModelScope.launchIO {
+            preload(next)
+            next.translationHook?.startInBackground()
+        }
+    }
+
+    // endregion
+
     fun getMangaReadingMode(resolveDefault: Boolean = true): Int {
         val default = readerPreferences.defaultReadingMode.get()
         val readingMode = ReadingMode.fromPreference(manga?.readingMode?.toInt())
@@ -815,7 +886,11 @@ class ReaderViewModel(
     }
 
     fun openSettingsDialog() {
-        mutableState.update { it.copy(dialog = Dialog.Settings) }
+        mutableState.update { it.copy(dialog = Dialog.Settings()) }
+    }
+
+    fun openTranslationSettingsDialog() {
+        mutableState.update { it.copy(dialog = Dialog.Settings(initialTab = Dialog.Settings.TRANSLATION_TAB)) }
     }
 
     fun closeDialog() {
@@ -910,7 +985,8 @@ class ReaderViewModel(
         val page = (state.value.dialog as? Dialog.PageActions)?.page
         if (page?.status != Page.State.Ready) return
         val manga = manga ?: return
-        val stream = page.stream ?: return
+        // Covers use the untranslated artwork.
+        val stream = page.originalStream ?: page.stream ?: return
 
         viewModelScope.launchNonCancellable {
             val result = try {
@@ -1003,7 +1079,11 @@ class ReaderViewModel(
 
     sealed interface Dialog {
         data object Loading : Dialog
-        data object Settings : Dialog
+        data class Settings(val initialTab: Int = 0) : Dialog {
+            companion object {
+                const val TRANSLATION_TAB = 3
+            }
+        }
         data object ReadingModeSelect : Dialog
         data object OrientationModeSelect : Dialog
         data class PageActions(val page: ReaderPage) : Dialog

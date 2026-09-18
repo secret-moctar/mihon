@@ -31,7 +31,7 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "app.mihon"
+        applicationId = "app.mihon.translate"
 
         versionCode = 29
         versionName = "0.20.4"
@@ -296,6 +296,9 @@ dependencies {
         exclude(module = "image-decoder")
     }
     implementation(libs.image.decoder)
+
+    // Translation (on-device OCR + offline fallback translation)
+    implementation(libs.bundles.mlkit.translation)
 
     implementation(libs.webgpuviewer)
     implementation(libs.kim)
